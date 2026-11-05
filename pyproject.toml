@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools==75.8.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "relational-fixture-slice"
+version = "0.1.0"
+description = "Bounded forward PostgreSQL fixture closure with atomic CSV restore"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Lofrano Tecnologia"}]
+dependencies = ["psycopg[binary]==3.3.8"]
+
+[project.urls]
+Homepage = "https://lofranotecnologia.com.br"
+Repository = "https://github.com/martinlofranodeoliveira/relational-fixture-slice"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/relational-fixture-slice/sql" = ["sql/install.sql", "sql/demo_data.sql"]

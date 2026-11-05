@@ -1,0 +1,45 @@
+name: serial-private-postgresql
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+    env:
+      RFS_IMAGE_DIGEST: sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Prepare Python and an unprivileged working directory
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 python3-venv util-linux
+          python3 -m venv /tmp/rfs-venv
+          /tmp/rfs-venv/bin/python -m pip install --require-hashes -r requirements.lock
+          python3 - <<'PY'
+          import os, pathlib, pwd, shutil
+          destination = pathlib.Path('/tmp/rfs-work')
+          shutil.copytree(os.getcwd(), destination, ignore=shutil.ignore_patterns('.git'))
+          user = pwd.getpwnam('postgres')
+          for base, directories, files in os.walk(destination):
+              os.chown(base, user.pw_uid, user.pw_gid)
+              for name in directories + files:
+                  os.chown(pathlib.Path(base) / name, user.pw_uid, user.pw_gid)
+          PY
+      - name: Record image identity
+        shell: bash
+        run: |
+          printf 'PostgreSQL 17 bookworm image: `%s`\n' "$RFS_IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - name: Serial regression and asserting offline demo
+        working-directory: /tmp/rfs-work
+        shell: bash
+        run: |
+          runuser -u postgres -- /tmp/rfs-venv/bin/python tests/run.py
+          runuser -u postgres -- /tmp/rfs-venv/bin/python bin/fixture_slice.py demo --assert
